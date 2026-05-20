@@ -1,0 +1,38 @@
+{
+  "name": "tiger-option-profit-analysis",
+  "version": "0.1.0",
+  "description": "Analyze TigerOpen option strategy profits and update the Notion page named 期权收益统计.",
+  "author": {
+    "name": "yours-yu-zhu",
+    "url": "https://github.com/yours-yu-zhu"
+  },
+  "homepage": "https://github.com/yours-yu-zhu/tiger-option-profit-analysis",
+  "repository": "https://github.com/yours-yu-zhu/tiger-option-profit-analysis",
+  "license": "MIT",
+  "keywords": [
+    "tigeropen",
+    "options",
+    "wheel",
+    "notion",
+    "profit-analysis"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Tiger Option Profit Analysis",
+    "shortDescription": "TigerOpen option and Wheel profit analysis for Notion.",
+    "longDescription": "Analyze TigerOpen brokerage option strategies, including short puts, assignments, covered calls, Wheel flows, and put rollover chains, then refresh the Notion page named 期权收益统计.",
+    "developerName": "yours-yu-zhu",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/yours-yu-zhu/tiger-option-profit-analysis",
+    "defaultPrompt": [
+      "更新期权收益统计",
+      "Analyze my TigerOpen option profits",
+      "Refresh the Notion option profit report"
+    ],
+    "brandColor": "#2563EB"
+  }
+}
