@@ -16,6 +16,7 @@ Use the `tigeropen` skill first when available.
 Query these read-only TigerOpen data sets:
 
 - Account assets, including `currency_assets` forex rates.
+- Account total net liquidation value for full-account contribution calculations.
 - Current stock positions.
 - Current option positions.
 - Trade order history visible through the API.
@@ -27,6 +28,8 @@ Record these data cutoffs in the output:
 - Account/position snapshot time.
 - Latest order time and earliest order time returned by the API.
 - Forex rate used for HKD to USD conversion.
+- Account net liquidation value converted to HKD.
+- Visible strategy day count used for the full-account annualized contribution.
 
 ## Core Accounting Rules
 
@@ -38,6 +41,27 @@ When calculating annualized returns, assume the user does not use leverage. Use 
 - Assigned Wheel capital = the full cash needed to take assignment at the put strike, carried through the Wheel until shares are called away or sold.
 - Covered call on assigned shares does not add new capital; it uses the assigned stock capital already counted in the Wheel.
 - Annualized return = profit / full capital / holding days * 365.
+
+### Final Reporting Currency
+
+Use HKD as the final reporting currency for all top-level totals, dashboards, symbol summaries, and Notion conclusions.
+
+- Keep native currency columns in detail tables.
+- Convert every non-HKD amount to HKD before summing.
+- If the account asset query is based in USD and `currency_assets["HKD"].forex_rate` means `1 HKD = X USD`, convert USD to HKD with `USD / X`.
+- Do not present USD as the final total currency. USD equivalents may be shown only as supporting detail when useful.
+
+### Full Account Capital Contribution
+
+Calculate how much the option strategy contributes to the whole brokerage account's capital return.
+
+- Account capital denominator = current account `net_liquidation` converted to HKD.
+- Strategy profit numerator = final option strategy total profit in HKD, including realized items and current estimates for incomplete flows.
+- Visible strategy days = days from the earliest visible filled option trade used in the analysis to the account/position snapshot time. If the user provides a different start date, use the user's date and state it.
+- Simple full-account contribution = strategy profit HKD / account net liquidation HKD.
+- Annualized full-account contribution = simple full-account contribution / visible strategy days * 365.
+- Label this metric as the option strategy's contribution to the whole account, not the account's total return.
+- If API history is incomplete, mark the contribution as based on the visible API range.
 
 ### Short Put Not Assigned
 
@@ -90,6 +114,19 @@ Example: `TCH.HK` covered calls should be grouped with the `00700` stock Wheel w
 
 If an open option cannot be matched to a Wheel or rollover chain, classify it as `未完成：其他单腿期权` and use current unrealized PnL.
 
+### Existing Notion Strategy Precedence
+
+Treat the existing Notion page as the source of truth for strategy grouping when updating an already-maintained report.
+
+- Always fetch the current Notion page before analyzing TigerOpen orders.
+- Parse the existing report's strategy rows, strategy names, Wheel flows, rollover chains, completed items, and unmatched single-leg classifications.
+- If a strategy or grouping already exists in Notion, keep that grouping and update only its dynamic numbers: realized PnL, unrealized PnL, HKD conversion, subtotals, totals, account contribution, snapshot times, and observations.
+- Do not re-compose, split, merge, or reclassify existing Notion strategies solely from the latest order history.
+- Use TigerOpen order history to refresh numbers for existing strategies and to identify genuinely new strategies not yet recorded on the Notion page.
+- Add a new strategy row only when the visible API data contains a filled option position/order that cannot be matched to any existing Notion strategy, contract, underlying, Wheel, rollover chain, or single-leg row.
+- If current TigerOpen data appears to contradict an existing Notion grouping, keep the Notion grouping and mark the row as needing review instead of silently changing the grouping.
+- Preserve user-written strategy notes, special mappings, dividends, and manual adjustments from the existing Notion page unless newer user instructions explicitly override them.
+
 ## Required Output Structure
 
 Write the Notion page with these sections:
@@ -106,13 +143,21 @@ Write the Notion page with these sections:
 10. `按标的汇总`
 11. `关键观察`
 
-Use concise tables. Keep native currency columns and add a USD-converted summary. Do not sum HKD and USD directly without converting.
+Use concise tables. Keep native currency columns and add an HKD-converted summary. Do not sum HKD and USD directly without converting. The final dashboard, final strategy total, symbol summary, and conclusion must use HKD as the base currency.
+
+Add a `全账户本金贡献` section before the final observations. It must include:
+
+- Option strategy profit in HKD.
+- Current account net liquidation in HKD.
+- Visible strategy day count.
+- Strategy profit / account net liquidation.
+- Annualized full-account contribution.
 
 ## Notion Update Rules
 
 - Search Notion for `期权收益统计`.
-- Fetch the page before updating.
-- If it is the intended page, replace its content with the full refreshed report.
+- Fetch the page before updating and use its existing strategy structure as the baseline.
+- If it is the intended page, update the full refreshed report while preserving existing strategy groupings and user-written notes.
 - After updating, fetch it again to verify the content saved.
 
 ## Safety
