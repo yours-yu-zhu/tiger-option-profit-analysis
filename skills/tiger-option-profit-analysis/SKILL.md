@@ -83,6 +83,14 @@ For incomplete Wheel flows:
 
 Current estimate = realized put PnL + current stock unrealized PnL + covered call unrealized PnL + dividends attributable to the assigned shares.
 
+Also report the strategy-adjusted holding cost per share for every incomplete Wheel flow that already has assigned shares. Prefer a concise column named `策略成本/股` in the `未完成：Wheel 流程` table.
+
+Strategy-adjusted holding cost per share =
+
+`(stock cost basis - realized put PnL - realized covered call PnL - current unrealized covered call PnL - dividends attributable to the assigned shares) / assigned share quantity`
+
+Use the current TigerOpen stock cost basis (`average_cost * share quantity`) when available, because it includes assignment-related costs reflected by the broker. If the stock position cost basis is unavailable, use the assignment strike times assigned shares and state that the value excludes broker cost-basis adjustments. Do not subtract current stock unrealized PnL from the holding cost; stock unrealized PnL belongs in the current estimate, not in the cost-basis adjustment. If useful, add a note with the realized-only cost per share that excludes open covered call unrealized PnL.
+
 Important mapping example: Tiger/Tencent option contracts may appear as `TCH.HK`, while the assigned stock position may appear as `00700`. Treat `TCH.HK` options and `00700` stock as the same Tencent Wheel flow when the order/position sequence matches.
 
 Known user-specific dividend adjustment to preserve unless newer data contradicts it:
@@ -144,6 +152,8 @@ Write the Notion page with these sections:
 11. `关键观察`
 
 Use concise tables. Keep native currency columns and add an HKD-converted summary. Do not sum HKD and USD directly without converting. The final dashboard, final strategy total, symbol summary, and conclusion must use HKD as the base currency.
+
+In `未完成：Wheel 流程`, include the strategy-adjusted holding cost per share for each assigned-stock Wheel, using the stock's native currency. Use `N/A` only when the Wheel has no assigned stock yet or when the assigned share quantity cannot be determined.
 
 Add a `全账户本金贡献` section before the final observations. It must include:
 
