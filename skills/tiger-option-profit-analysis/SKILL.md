@@ -1,6 +1,6 @@
 ---
 name: tiger-option-profit-analysis
-description: Analyze a TigerOpen brokerage account's option strategy profits using the user's Wheel, short put, covered call, assignment, and put-rollover rules, then update the Notion page named 期权收益统计. Use when the user asks to update option profit stats, analyze TigerOpen option trades, Wheel收益, 卖Put收益, covered call收益, 展期链, 期权收益统计, or write the results to Notion.
+description: Analyze a TigerOpen brokerage account's option strategy profits using the user's Wheel, short put, covered call, assignment, and put-rollover rules, then incrementally update the Notion page named 期权收益统计 and its database-backed sections. Use when the user asks to update option profit stats, analyze TigerOpen option trades, Wheel收益, 卖Put收益, covered call收益, 展期链, 期权收益统计, or write the results to Notion/databases.
 metadata:
   short-description: TigerOpen option/Wheel profit analysis for Notion
 ---
@@ -122,40 +122,67 @@ Example: `TCH.HK` covered calls should be grouped with the `00700` stock Wheel w
 
 If an open option cannot be matched to a Wheel or rollover chain, classify it as `未完成：其他单腿期权` and use current unrealized PnL.
 
+### Current Notion Database Model
+
+The Notion page `期权收益统计` is now database-backed. Do not recreate the old Markdown tables.
+
+Treat these child databases as the canonical editable surfaces:
+
+- `期权收益看板数据库`: top-level dashboard rows and native Notion chart views.
+- `已完成：Put 未行权/到期`: completed short-put rows plus a final `总计` row.
+- `已完成：完整 Wheel`: completed Wheel rows plus a final `总计` row.
+- `未完成：Wheel 流程`: incomplete Wheel rows plus a final `总计` row.
+- `未完成：Put 展期链`: incomplete put-rollover rows plus a final `总计` row.
+- `未完成：其他单腿期权`: unmatched single-leg option rows plus a final `总计` row.
+- `期权标的汇总数据库`: symbol-level totals and native horizontal bar chart views.
+- `全账户本金贡献数据库`: full-account contribution metrics.
+
+When updating Notion:
+
+- Fetch the page, then fetch/query its child databases or data sources by database name.
+- Read existing strategy rows from the databases, not from Markdown tables.
+- Preserve existing database schemas, native Notion chart views, filters, sorts, and visual configuration unless the user explicitly asks to change them.
+- Update only rows whose strategy, position, totals, snapshot metadata, or observations changed.
+- Insert new rows only for genuinely new strategies or newly visible legs/operations that cannot be matched to an existing database row.
+- If an existing strategy gets a new partial operation, update the relevant existing row when it is the same strategy flow; otherwise append a new row to the correct strategy database.
+- Keep each detail database's final `总计` row as the last row and refresh it whenever rows above it change.
+- Keep HKD-converted numeric columns formatted as HKD (`hong_kong_dollar` in Notion), and keep `年化%` as a plain number/percentage-style metric, not a currency.
+- Do not delete or rebuild untouched rows, databases, chart views, or page sections.
+
 ### Existing Notion Strategy Precedence
 
 Treat the existing Notion page as the source of truth for strategy grouping when updating an already-maintained report.
 
 - Always fetch the current Notion page before analyzing TigerOpen orders.
-- Parse the existing report's strategy rows, strategy names, Wheel flows, rollover chains, completed items, and unmatched single-leg classifications.
+- Parse the existing database rows, strategy names, Wheel flows, rollover chains, completed items, and unmatched single-leg classifications.
 - If a strategy or grouping already exists in Notion, keep that grouping and update only its dynamic numbers: realized PnL, unrealized PnL, HKD conversion, subtotals, totals, account contribution, snapshot times, and observations.
 - Do not re-compose, split, merge, or reclassify existing Notion strategies solely from the latest order history.
 - Use TigerOpen order history to refresh numbers for existing strategies and to identify genuinely new strategies not yet recorded on the Notion page.
-- Add a new strategy row only when the visible API data contains a filled option position/order that cannot be matched to any existing Notion strategy, contract, underlying, Wheel, rollover chain, or single-leg row.
+- Add a new strategy row to the relevant database only when the visible API data contains a filled option position/order that cannot be matched to any existing Notion strategy, contract, underlying, Wheel, rollover chain, or single-leg row.
 - If current TigerOpen data appears to contradict an existing Notion grouping, keep the Notion grouping and mark the row as needing review instead of silently changing the grouping.
 - Preserve user-written strategy notes, special mappings, dividends, and manual adjustments from the existing Notion page unless newer user instructions explicitly override them.
 
 ## Required Output Structure
 
-Write the Notion page with these sections:
+The Notion page should retain these sections, but most sections are backed by databases. Do not replace existing databases with Markdown tables.
 
 1. `一句话总结`
 2. `收益看板`
-3. `可视化结构` with a Mermaid flowchart
-4. `统计规则`
-5. `已完成：Put 未行权/到期`
-6. `已完成：完整 Wheel`
-7. `未完成：Wheel 流程`
-8. `未完成：Put 展期链`
-9. `未完成：其他单腿期权`
-10. `按标的汇总`
+3. `统计规则`
+4. `已完成：Put 未行权/到期`
+5. `已完成：完整 Wheel`
+6. `未完成：Wheel 流程`
+7. `未完成：Put 展期链`
+8. `未完成：其他单腿期权`
+9. `按标的汇总`
+10. `全账户本金贡献`
 11. `关键观察`
 
-Use concise tables. Keep native currency columns and add an HKD-converted summary. Do not sum HKD and USD directly without converting. The final dashboard, final strategy total, symbol summary, and conclusion must use HKD as the base currency.
+Use the existing databases for detail rows and summaries. Keep native currency text columns where useful and keep HKD-converted numeric columns for totals and charts. Do not sum HKD and USD directly without converting. The final dashboard, final strategy total, symbol summary, and conclusion must use HKD as the base currency.
 
-In `未完成：Wheel 流程`, include the strategy-adjusted holding cost per share for each assigned-stock Wheel, using the stock's native currency. Use `N/A` only when the Wheel has no assigned stock yet or when the assigned share quantity cannot be determined.
+In the `未完成：Wheel 流程` database, include the strategy-adjusted holding cost per share for each assigned-stock Wheel, using the stock's native currency. Use `N/A` only when the Wheel has no assigned stock yet or when the assigned share quantity cannot be determined.
 
-Add a `全账户本金贡献` section before the final observations. It must include:
+The `全账户本金贡献` database must include:
 
 - Option strategy profit in HKD.
 - Current account net liquidation in HKD.
@@ -166,9 +193,12 @@ Add a `全账户本金贡献` section before the final observations. It must inc
 ## Notion Update Rules
 
 - Search Notion for `期权收益统计`.
-- Fetch the page before updating and use its existing strategy structure as the baseline.
-- If it is the intended page, update the full refreshed report while preserving existing strategy groupings and user-written notes.
-- After updating, fetch it again to verify the content saved.
+- Fetch the page before updating and use its existing database rows as the baseline.
+- Fetch or query the relevant child databases before changing any strategy rows.
+- If it is the intended page, update only the changed page text, database rows, totals, and dashboard metrics while preserving existing strategy groupings, user-written notes, database schemas, and Notion views.
+- Add new strategies or new strategy operations to the appropriate database; do not add standalone Markdown tables.
+- If a database row is unaffected by the latest TigerOpen data and not needed for refreshed totals, leave it unchanged.
+- After updating, fetch the page and any touched data sources again to verify the content saved.
 
 ## Safety
 
